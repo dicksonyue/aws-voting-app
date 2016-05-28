@@ -18,25 +18,22 @@ var options = {
 // App
 const app = express();
 app.get('/', function (req, res) {
-  try {
-    http.request(options, function(res) {
+
+    http.request(options, function(r) {
       console.log('STATUS: ' + res.statusCode);
       console.log('HEADERS: ' + JSON.stringify(res.headers));
-      res.setEncoding('utf8');
-      res.on('data', function (chunk) {
+      r.setEncoding('utf8');
+      r.on('data', function (chunk) {
         console.log('BODY: ' + chunk);
-        res.send('instance-id: ' + chunk);
+        res.write('instance-id: ' + chunk);
         res.send();
       });
     }).on('error', function(e) {
         console.log("error: " + e.message);
-        res.send( "error: " + e.message);
-
+        res.write( "error: " + e.message);
+        res.send();
     }).end();
-  } catch (err) {
-    console.log(err);
-    res.send('Hello world\n');
-  }
+
 });
 
 app.listen(PORT);
