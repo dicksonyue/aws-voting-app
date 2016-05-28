@@ -7,7 +7,12 @@ var promise = require('promise');
 
 // Constants
 const PORT = 8080;
-const METASVC = {
+const DOCKERIP = "192.168.99.100";
+var METASVCMOCK = {
+  host: 'localhost', //'169.254.169.254',
+  port: 8080
+}
+var METASVC = {
   host: '169.254.169.254', //'169.254.169.254',
   port: 80
 }
@@ -51,6 +56,15 @@ function getMetaData(options){
 
 const app = express();
 app.get('/', function (req, res) {
+  console.log(req.headers.host);
+  var islocal = req.headers.host.indexOf("localhost") >= 0 || req.headers.host.indexOf(DOCKERIP) >= 0;
+  if(islocal){
+    optionsinstance.host = METASVCMOCK.host;
+    optionsinstance.port = METASVCMOCK.port;
+    optionszone.host = METASVCMOCK.host;
+    optionszone.port = METASVCMOCK.port;
+  }
+
   var metaDataPromises = [getMetaData(optionsinstance), getMetaData(optionszone)];
   Promise.all(metaDataPromises).then(function(data){
     console.log(data) // logs ['dog1.png', 'dog2.png']
@@ -64,11 +78,11 @@ app.get('/', function (req, res) {
 });
 
 app.get('/latest/meta-data/instance-id', function (req, res) {
-  res.write( "i-xxxxxxxx");
+  res.write( "i-xxmockxx");
   res.send();
 });
 app.get('/latest/meta-data//placement/availability-zone', function (req, res) {
-  res.write( "ap-northeast-x");
+  res.write( "ap-northeast-xmock");
   res.send();
 });
 
