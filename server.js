@@ -25,7 +25,7 @@ app.get('/', function (req, res) {
       r.setEncoding('utf8');
       r.on('data', function (chunk) {
         console.log('BODY: ' + chunk);
-        res.write('instance-id: ' + chunk);
+        res.write('instance-id: ' + chunk + '\n');
         res.send();
       });
     }).on('error', function(e) {
