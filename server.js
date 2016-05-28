@@ -36,5 +36,5 @@ app.get('/', function (req, res) {
 
 });
 
-app.listen(PORT);
+app.listen(process.env.PORT || PORT);
 console.log('Running on http://localhost:' + PORT);
