@@ -15,7 +15,7 @@ var METASVC = {
   host: '169.254.169.254', //'169.254.169.254',
   port: 80
 }
-var htmlbody = "<h2>aws elasticbeanstalk demo @ ogcio</h2>";
+var htmlbody = "aws elasticbeanstalk demo @ ogcio ";
 
 var optionsinstance = {
   name: 'instance-id',
@@ -69,7 +69,7 @@ app.get('/', function (req, res) {
   Promise.all(metaDataPromises).then(function(data){
     console.log(data) // logs ['dog1.png', 'dog2.png']
     res.write(htmlbody);
-    res.write("<h2>" + JSON.stringify(data) +"</h2>");
+    res.write("" + JSON.stringify(data) +"");
     res.send();
   }).catch(function(err){ // if any image fails to load, then() is skipped and catch is called
     console.log(err) // returns array of images that failed to load
