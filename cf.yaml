@@ -1,0 +1,488 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+    Default: Kowloon
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Select a VPC that allows instances access to the Internet.
+  SubnetId:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Select at two subnets in your selected VPC.
+  DesiredCapacity:
+    Type: Number
+    Default: '2'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '3'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m3.medium, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge]
+    ConstraintDescription: Please choose a valid instance type.
+  RedisHost:
+    Description: Redis Host
+    Type: String
+    Default: ecs-demo.cw7bo2.0001.usw2.cache.amazonaws.com
+  RedisPort:
+    Description: Redis Port
+    Type: String
+    Default: '6379'
+  ImgSvc10001:
+    Description: Service 10001 Docker Image
+    Type: String
+    Default: dicksonyue/aws-voting-app-svc-10001:v3
+  ImgSvc10002:
+    Description: Service 10002 Docker Image
+    Type: String
+    Default: dicksonyue/aws-voting-app-svc-10002:v2
+  ImgSvc10003:
+    Description: Service 10003 Docker Image
+    Type: String
+    Default: dicksonyue/aws-voting-app-svc-10003:v3
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMIID: ami-ec33cc96
+    us-east-2:
+      AMIID: ami-34032e51
+    us-west-1:
+      AMIID: ami-d5d0e0b5
+    us-west-2:
+      AMIID: ami-29f80351
+    eu-west-1:
+      AMIID: ami-13f7226a
+    eu-west-2:
+      AMIID: ami-eb62708f
+    eu-central-1:
+      AMIID: ami-40d5672f
+    ap-northeast-1:
+      AMIID: ami-21815747
+    ap-northeast-2:
+      AMIID: ami-7ee13b10
+    ap-southeast-1:
+      AMIID: ami-99f588fa
+    ap-southeast-2:
+      AMIID: ami-4f08e82d
+    ca-central-1:
+      AMIID: ami-9b54edff
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Join ['', [!Ref 'AWS::StackName', -ECSCluster]]
+  EcsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: ECS Security Group
+      VpcId: !Ref 'VpcId'
+  EcsSecurityGroupHTTPinbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'EcsSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '80'
+      ToPort: '80'
+      CidrIp: 0.0.0.0/0
+  EcsSecurityGroupSSHinbound:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'EcsSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '22'
+      ToPort: '22'
+      CidrIp: 0.0.0.0/0
+  EcsSecurityGroupALBports:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref 'EcsSecurityGroup'
+      IpProtocol: tcp
+      FromPort: '31000'
+      ToPort: '61000'
+      SourceSecurityGroupId: !Ref 'EcsSecurityGroup'
+  CloudwatchLogsGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['-', [ECSLogGroup, !Ref 'AWS::StackName']]
+      RetentionInDays: 14
+  ECSALB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Join ['', [!Ref 'AWS::StackName', -ECSALB]]
+      Scheme: internet-facing
+      LoadBalancerAttributes:
+      - Key: idle_timeout.timeout_seconds
+        Value: '30'
+      Subnets: !Ref 'SubnetId'
+      SecurityGroups: [!Ref 'EcsSecurityGroup']
+  ALBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    DependsOn: ECSServiceRole
+    Properties:
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref 'ECSTG10001'
+      LoadBalancerArn: !Ref 'ECSALB'
+      Port: '80'
+      Protocol: HTTP
+  ECSALBListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: ALBListener
+    Properties:
+      Actions:
+      - Type: forward
+        TargetGroupArn: !Ref 'ECSTG10001'
+      Conditions:
+      - Field: path-pattern
+        Values: [/]
+      ListenerArn: !Ref 'ALBListener'
+      Priority: 1
+  ECSALBListenerRule2:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: ALBListener
+    Properties:
+      Actions:
+      - Type: forward
+        TargetGroupArn: !Ref 'ECSTG10002'
+      Conditions:
+      - Field: path-pattern
+        Values: [/10002*]
+      ListenerArn: !Ref 'ALBListener'
+      Priority: 2
+  ECSALBListenerRule3:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    DependsOn: ALBListener
+    Properties:
+      Actions:
+      - Type: forward
+        TargetGroupArn: !Ref 'ECSTG10003'
+      Conditions:
+      - Field: path-pattern
+        Values: [/10003*]
+      ListenerArn: !Ref 'ALBListener'
+      Priority: 3
+  ECSTG10001:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: ECSALB
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Name: !Join ['', [!Ref 'AWS::StackName', -ECSTG10001]]
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref 'VpcId'
+  ECSTG10002:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: ECSALB
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Name: !Join ['', [!Ref 'AWS::StackName', -ECSTG10002]]
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref 'VpcId'
+  ECSTG10003:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    DependsOn: ECSALB
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      Name: !Join ['', [!Ref 'AWS::StackName', -ECSTG10003]]
+      Port: 80
+      Protocol: HTTP
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref 'VpcId'
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier: !Ref 'SubnetId'
+      LaunchConfigurationName: !Ref 'ContainerInstances'
+      MinSize: '1'
+      MaxSize: !Ref 'MaxSize'
+      DesiredCapacity: !Ref 'DesiredCapacity'
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: 'true'
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMIID]
+      SecurityGroups: [!Ref 'EcsSecurityGroup']
+      InstanceType: !Ref 'InstanceType'
+      IamInstanceProfile: !Ref 'EC2InstanceProfile'
+      KeyName: !Ref 'KeyName'
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-signal -s 'true' --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+
+  TaskDef10001:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Join ['', [!Ref 'AWS::StackName', -voting-app-task-10001]]
+      ContainerDefinitions:
+      - Name: voting-app-container-10001
+        Cpu: '1'
+        Essential: 'true'
+        Image: {Ref: ImgSvc10001}
+        Memory: '200'
+        Command:
+        - 'npm'
+        - 'start'
+        Environment:
+        - Name: 'REDIS_HOST'
+          Value: {Ref: RedisHost}
+        - Name: 'REDIS_PORT'
+          Value: {Ref: RedisPort}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: !Ref 'CloudwatchLogsGroup'
+            awslogs-region: !Ref 'AWS::Region'
+            awslogs-stream-prefix: !Join ['', [!Ref 'AWS::StackName', -voting-app-task-10001]]
+        PortMappings:
+        - ContainerPort: 8080
+  Svc10001:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ALBListener
+      - TaskDef10001
+    Properties:
+      Cluster: !Ref 'ECSCluster'
+      DesiredCount: '1'
+      LoadBalancers:
+      - ContainerName: voting-app-container-10001
+        ContainerPort: '8080'
+        TargetGroupArn: !Ref 'ECSTG10001'
+      Role: !Ref 'ECSServiceRole'
+      TaskDefinition: !Ref 'TaskDef10001'
+      ServiceName: !Join ['', [!Ref 'AWS::StackName', -voting-app-svc-10001]]
+  TaskDef10002:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Join ['', [!Ref 'AWS::StackName', -voting-app-task-10002]]
+      ContainerDefinitions:
+      - Name: voting-app-container-10002
+        Cpu: '1'
+        Essential: 'true'
+        Image: {Ref: ImgSvc10002}
+        Memory: '200'
+        Command:
+        - 'npm'
+        - 'start'
+        Environment:
+        - Name: 'REDIS_HOST'
+          Value: {Ref: RedisHost}
+        - Name: 'REDIS_PORT'
+          Value: {Ref: RedisPort}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: !Ref 'CloudwatchLogsGroup'
+            awslogs-region: !Ref 'AWS::Region'
+            awslogs-stream-prefix: !Join ['', [!Ref 'AWS::StackName', -voting-app-task-10002]]
+        PortMappings:
+        - ContainerPort: 8080
+  Svc10002:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ALBListener
+      - TaskDef10002
+      - ECSTG10002
+      - ECSALBListenerRule2
+    Properties:
+      Cluster: !Ref 'ECSCluster'
+      DesiredCount: '1'
+      LoadBalancers:
+      - ContainerName: voting-app-container-10002
+        ContainerPort: '8080'
+        TargetGroupArn: !Ref 'ECSTG10002'
+      Role: !Ref 'ECSServiceRole'
+      TaskDefinition: !Ref 'TaskDef10002'
+      ServiceName: !Join ['', [!Ref 'AWS::StackName', -voting-app-svc-10002]]
+  TaskDef10003:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Join ['', [!Ref 'AWS::StackName', -voting-app-task-10003]]
+      ContainerDefinitions:
+      - Name: voting-app-container-10003
+        Cpu: '1'
+        Essential: 'true'
+        Image: {Ref: ImgSvc10003}
+        Memory: '200'
+        Command:
+        - 'npm'
+        - 'start'
+        Environment:
+        - Name: 'REDIS_HOST'
+          Value: {Ref: RedisHost}
+        - Name: 'REDIS_PORT'
+          Value: {Ref: RedisPort}
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: !Ref 'CloudwatchLogsGroup'
+            awslogs-region: !Ref 'AWS::Region'
+            awslogs-stream-prefix: !Join ['', [!Ref 'AWS::StackName', -voting-app-task-10003]]
+        PortMappings:
+        - ContainerPort: 8080
+  Svc10003:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - ALBListener
+      - TaskDef10003
+      - ECSTG10003
+      - ECSALBListenerRule3
+    Properties:
+      Cluster: !Ref 'ECSCluster'
+      DesiredCount: '1'
+      LoadBalancers:
+      - ContainerName: voting-app-container-10003
+        ContainerPort: '8080'
+        TargetGroupArn: !Ref 'ECSTG10003'
+      Role: !Ref 'ECSServiceRole'
+      TaskDefinition: !Ref 'TaskDef10003'
+      ServiceName: !Join ['', [!Ref 'AWS::StackName', -voting-app-svc-10003]]
+  ECSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ecs.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['elasticloadbalancing:DeregisterInstancesFromLoadBalancer', 'elasticloadbalancing:DeregisterTargets',
+              'elasticloadbalancing:Describe*', 'elasticloadbalancing:RegisterInstancesWithLoadBalancer',
+              'elasticloadbalancing:RegisterTargets', 'ec2:Describe*', 'ec2:AuthorizeSecurityGroupIngress']
+            Resource: '*'
+  ServiceScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    DependsOn: Svc10001
+    Properties:
+      MaxCapacity: 2
+      MinCapacity: 1
+      ResourceId: !Join ['', [service/, !Ref 'ECSCluster', /, !GetAtt [Svc10001, Name]]]
+      RoleARN: !GetAtt [AutoscalingRole, Arn]
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+  ServiceScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AStepPolicy
+      PolicyType: StepScaling
+      ScalingTargetId: !Ref 'ServiceScalingTarget'
+      StepScalingPolicyConfiguration:
+        AdjustmentType: PercentChangeInCapacity
+        Cooldown: 60
+        MetricAggregationType: Average
+        StepAdjustments:
+        - MetricIntervalLowerBound: 0
+          ScalingAdjustment: 200
+  ALB500sAlarmScaleUp:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      EvaluationPeriods: '1'
+      Statistic: Average
+      Threshold: '10'
+      AlarmDescription: Alarm if our ALB generates too many HTTP 500s.
+      Period: '60'
+      AlarmActions: [!Ref 'ServiceScalingPolicy']
+      Namespace: AWS/ApplicationELB
+      Dimensions:
+        - Name: LoadBalancer
+          Value: !GetAtt
+            - ECSALB
+            - LoadBalancerFullName
+      ComparisonOperator: GreaterThanThreshold
+      MetricName: HTTPCode_ELB_5XX_Count
+  EC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [ec2.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: ecs-service
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['ecs:CreateCluster', 'ecs:DeregisterContainerInstance', 'ecs:DiscoverPollEndpoint',
+              'ecs:Poll', 'ecs:RegisterContainerInstance', 'ecs:StartTelemetrySession',
+              'ecs:Submit*', 'logs:CreateLogStream', 'logs:PutLogEvents']
+            Resource: '*'
+  AutoscalingRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: [application-autoscaling.amazonaws.com]
+          Action: ['sts:AssumeRole']
+      Path: /
+      Policies:
+      - PolicyName: service-autoscaling
+        PolicyDocument:
+          Statement:
+          - Effect: Allow
+            Action: ['application-autoscaling:*', 'cloudwatch:DescribeAlarms', 'cloudwatch:PutMetricAlarm',
+              'ecs:DescribeServices', 'ecs:UpdateService']
+            Resource: '*'
+  EC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: [!Ref 'EC2Role']
+Outputs:
+  TaskDef10001:
+    Value: !Ref 'TaskDef10001'
+  TaskDef10002:
+    Value: !Ref 'TaskDef10002'
+  TaskDef10003:
+    Value: !Ref 'TaskDef10003'
+  Svc10001:
+    Value: !Ref 'Svc10001'
+  Svc10002:
+    Value: !Ref 'Svc10002'
+  Svc10003:
+    Value: !Ref 'Svc10003'
+  ECSCluster:
+    Value: !Ref 'ECSCluster'
+  ECSALB:
+    Description: Your ALB DNS URL
+    Value: !Join ['', [!GetAtt [ECSALB, DNSName]]]
