@@ -47,7 +47,7 @@ Parameters:
   ImgSvc10003:
     Description: Service 10003 Docker Image
     Type: String
-    Default: dicksonyue/aws-voting-app-svc-10003:v3
+    Default: dicksonyue/aws-voting-app-svc-10003:v2
 Mappings:
   AWSRegionToAMI:
     us-east-1:
@@ -384,7 +384,8 @@ Resources:
           - Effect: Allow
             Action: ['elasticloadbalancing:DeregisterInstancesFromLoadBalancer', 'elasticloadbalancing:DeregisterTargets',
               'elasticloadbalancing:Describe*', 'elasticloadbalancing:RegisterInstancesWithLoadBalancer',
-              'elasticloadbalancing:RegisterTargets', 'ec2:Describe*', 'ec2:AuthorizeSecurityGroupIngress']
+              'elasticloadbalancing:RegisterTargets', 'ec2:Describe*', 'ec2:AuthorizeSecurityGroupIngress','ecr:GetAuthorizationToken',
+'ecr:BatchCheckLayerAvailability','ecr:GetDownloadUrlForLayer','ecr:GetRepositoryPolicy','ecr:DescribeRepositories','ecr:ListImages','ecr:DescribeImages','ecr:BatchGetImage']
             Resource: '*'
   ServiceScalingTarget:
     Type: AWS::ApplicationAutoScaling::ScalableTarget
