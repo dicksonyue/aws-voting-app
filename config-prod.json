@@ -1,6 +1,0 @@
-{
-  "Parameters" : {
-    "RedisHost" : "ecs-demo.cw7bo2.0001.usw2.cache.amazonaws.com",
-    "RedisPort" : "6379"
-  }
-}
