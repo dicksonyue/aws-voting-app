@@ -4,7 +4,7 @@ const express = require('express');
 const http = require('http');
 var jade = require('jade');
 var promise = require('promise');
-var redis = require('redis');
+var redis = require('ioredis');
 var redisconfig = {
 	port:process.env.REDIS_PORT,
 	host:process.env.REDIS_HOST
@@ -65,7 +65,7 @@ function getNextId(){
   return new Promise(function(resolve, reject){
 		console.log("PORT:" + redisconfig.port)
 		console.log("PORT:" + redisconfig.host)
-    var rc = redis.createClient(redisconfig.port, redisconfig.host);
+    var rc = new redis(redisconfig.port, redisconfig.host); //redis.createClient(redisconfig.port, redisconfig.host);
 		rc.on("error", function(err) {
 		  console.error("Error connecting to redis", err);
 			rc.quit();
