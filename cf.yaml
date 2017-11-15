@@ -31,8 +31,8 @@ Parameters:
   RedisHost:
     Description: Redis Host
     Type: String
-    Default: ecs-demo.cw7bo2.0001.usw2.cache.amazonaws.com
-  RedisPort:
+    Default: redis-demo.cw7bo2.clustercfg.usw2.cache.amazonaws.com
+  RedisPort: 
     Description: Redis Port
     Type: String
     Default: '6379'
