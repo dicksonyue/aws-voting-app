@@ -1,4 +1,4 @@
-var redis = require('redis');
+var redis = require('ioredis');
 var redisconfig = {
 	port:process.env.REDIS_PORT,
 	host:process.env.REDIS_HOST
@@ -6,11 +6,12 @@ var redisconfig = {
 console.log(process.env.REDIS_PORT)
 console.log(process.env.REDIS_HOST)
 
-var rc = redis.createClient(redisconfig.port, redisconfig.host);
+var rc = new redis.Cluster({port:redisconfig.port, host:redisconfig.host});
 
-rc.on('connect', function() {
-    console.log('connected');
-		rc.incr( 'nextid' , function( err, id ) {
-				console.log(id);
-    } );
+rc.incr( 'nextid' , function( err, id ) {
+	  console.log(err);
+		console.log(id);
+} );
+rc.get('nextid').then(function (result) {
+  console.log(result);
 });

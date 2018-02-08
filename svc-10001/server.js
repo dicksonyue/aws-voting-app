@@ -64,8 +64,8 @@ function getNextId(){
   console.log("getNextId");
   return new Promise(function(resolve, reject){
 		console.log("PORT:" + redisconfig.port)
-		console.log("PORT:" + redisconfig.host)
-    var rc = new redis(redisconfig.port, redisconfig.host); //redis.createClient(redisconfig.port, redisconfig.host);
+		console.log("HOST:" + redisconfig.host)
+    var rc = new redis.Cluster({port:redisconfig.port, host:redisconfig.host}); //redis.createClient(redisconfig.port, redisconfig.host);
 		rc.on("error", function(err) {
 		  console.error("Error connecting to redis", err);
 			rc.quit();
