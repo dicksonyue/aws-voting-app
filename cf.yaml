@@ -364,7 +364,6 @@ Resources:
       - ContainerName: voting-app-container-10003
         ContainerPort: '8080'
         TargetGroupArn: !Ref 'ECSTG10003'
-      Role: !Ref 'ECSServiceRole'
       TaskDefinition: !Ref 'TaskDef10003'
       ServiceName: !Join ['', [!Ref 'AWS::StackName', -voting-app-svc-10003]]
   ECSServiceRole:
