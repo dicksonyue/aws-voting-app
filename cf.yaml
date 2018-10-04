@@ -31,7 +31,7 @@ Parameters:
   RedisHost:
     Description: Redis Host
     Type: String
-    Default: clusterecs-demo.cw7bo2.0001.usw2.cache.amazonaws.com
+    Default: ecs-demo.cw7bo2.0001.usw2.cache.amazonaws.com
   RedisPort:
     Description: Redis Port
     Type: String
