@@ -100,7 +100,7 @@ app.get('/' + SVCPATH + '/', function (req, res) {
     optionszone.port = METASVCMOCK.port;
   }
 
-  var metaDataPromises = [getMetaData(optionsinstance), getMetaData(optionszone),getNextId()];
+  var metaDataPromises = [getNextId()];
   Promise.all(metaDataPromises).then(function(data){
     console.log(data) // logs ['dog1.png', 'dog2.png']
     var fn = jade.compileFile('template.jade');
