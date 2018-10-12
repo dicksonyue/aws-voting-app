@@ -127,7 +127,11 @@ app.get('/' + SVCPATH + '/', function (req, res) {
       }
     )
 		if(isfargate)
+		{
+			result.showaza = true;
+			result.showazb = false;
 			result.maintainer.computemode = "ecs-fargate";
+		}
 		else if(islocal)
 			result.maintainer.computemode = "localhost";
 		else if(result.maintainer.instanceid)
