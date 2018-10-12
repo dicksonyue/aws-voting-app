@@ -9,6 +9,7 @@ var redisconfig = {
 	port:process.env.REDIS_PORT,
 	host:process.env.REDIS_HOST
 }
+var isfargate = process.env.ISFARGATE;
 
 // Constants
 const SVCPATH = "10003";
@@ -100,7 +101,7 @@ app.get('/' + SVCPATH + '/', function (req, res) {
     optionszone.port = METASVCMOCK.port;
   }
 
-  var metaDataPromises = [getNextId()];
+  var metaDataPromises = isfargate ? [getNextId()] : [getMetaData(optionsinstance), getMetaData(optionszone),getNextId()];
   Promise.all(metaDataPromises).then(function(data){
     console.log(data) // logs ['dog1.png', 'dog2.png']
     var fn = jade.compileFile('template.jade');
@@ -125,6 +126,13 @@ app.get('/' + SVCPATH + '/', function (req, res) {
 
       }
     )
+		if(isfargate)
+			result.maintainer.computemode = "ecs-fargate";
+		else if(islocal)
+			result.maintainer.computemode = "localhost";
+		else if(result.maintainer.instanceid)
+				result.maintainer.computemode = "ecs-ec2";
+
     var html = fn(result);
     res.write(html);
     res.send();
