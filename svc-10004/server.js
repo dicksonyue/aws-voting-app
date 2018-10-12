@@ -12,7 +12,7 @@ var redisconfig = {
 var isfargate = process.env.ISFARGATE;
 
 // Constants
-const SVCPATH = "10004";
+const SVCPATH = "10004"; 
 const PORT = 8080;
 const DOCKERIP = "192.168.99.100";
 var METASVCMOCK = {
